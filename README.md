@@ -24,7 +24,7 @@ Click "Actions" tab
 Find "Update Gallery" workflow
 Click "Run workflow" to trigger it manually
 
-Step 6: Monitor the Action
+Monitor the Action
 Watch the action run:
 
 Go to Actions tab in your repo
