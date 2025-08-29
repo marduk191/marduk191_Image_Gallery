@@ -1,0 +1,95 @@
+# .github/workflows/update-gallery.yml
+name: Update Gallery
+
+on:
+  push:
+    paths:
+      - 'images/**'
+  workflow_dispatch:
+
+jobs:
+  update-gallery:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+          
+      - name: Generate Gallery
+        run: |
+          python3 << 'EOF'
+          import os
+          from pathlib import Path
+          
+          def get_images(directory="images"):
+              extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'}
+              if not os.path.exists(directory):
+                  return []
+              return sorted([f for f in os.listdir(directory) 
+                           if Path(f).suffix.lower() in extensions])
+          
+          def generate_gallery(images, directory="images", cols=3):
+              if not images:
+                  return "No images found.\n"
+              
+              md = "## 🖼️ Gallery\n\n"
+              md += "| " + " | ".join([" "] * cols) + " |\n"
+              md += "| " + " | ".join(["---"] * cols) + " |\n"
+              
+              for i in range(0, len(images), cols):
+                  row = images[i:i+cols]
+                  cells = []
+                  for img in row:
+                      cell = f'<img src="{directory}/{img}" width="200" alt="{img}">'
+                      cells.append(cell)
+                  while len(cells) < cols:
+                      cells.append(" ")
+                  md += "| " + " | ".join(cells) + " |\n"
+              
+              return md
+          
+          # Generate gallery
+          images = get_images()
+          gallery_md = generate_gallery(images)
+          
+          # Update README
+          readme_path = "README.md"
+          start_marker = "<!-- GALLERY_START -->"
+          end_marker = "<!-- GALLERY_END -->"
+          
+          if os.path.exists(readme_path):
+              with open(readme_path, 'r') as f:
+                  content = f.read()
+          else:
+              content = "# My Project\n\n"
+          
+          start_idx = content.find(start_marker)
+          end_idx = content.find(end_marker)
+          
+          if start_idx != -1 and end_idx != -1:
+              new_content = (content[:start_idx + len(start_marker)] + 
+                           "\n" + gallery_md + "\n" + content[end_idx:])
+          else:
+              new_content = content + f"\n\n{start_marker}\n{gallery_md}\n{end_marker}\n"
+          
+          with open(readme_path, 'w') as f:
+              f.write(new_content)
+          
+          print(f"Updated gallery with {len(images)} images")
+          EOF
+          
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Auto-update gallery"
+            git push
+          fi
